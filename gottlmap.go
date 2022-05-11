@@ -1,4 +1,4 @@
-package goTTLMap
+package gottlmap
 
 import (
 	"log"

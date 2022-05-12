@@ -1,7 +1,7 @@
 # gottlmap
 
 
-gottlmap is a [Go](http://golang.org) package that provides an in-memory
+gottlmap is a simple [Go](http://golang.org) package that provides an in-memory
 key-value store for TTL-based expirable items.
 
 This package also allows for userdefined action to be performed before deleting the key-value
@@ -11,12 +11,12 @@ pair from memory. Ex: Persist to DB, file or write to a network socket.
 ## Install
 
 
-```go
+```bash
 go get -u github.com/MFlowAU/gottlmap
 ```
 
 
-## Examples
+## Example
 
 ```go
 package main
@@ -30,7 +30,7 @@ import (
 	"github.com/MFlowAU/gottlmap"
 )
 
-func example() {
+func main() {
 	t := time.NewTicker(1 * time.Second) // How often the cleanup routine is called
 	ctx, cancel := context.WithCancel(context.Background())
 	ttl_map, err := gottlmap.New(t, nil, ctx)

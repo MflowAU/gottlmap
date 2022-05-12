@@ -1,6 +1,8 @@
 package gottlmap
 
 import (
+	"context"
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -8,30 +10,41 @@ import (
 
 type Hook func(string, Element) error
 
+// TTLMap is a container of map[string]*Element but with expirable Items.
 type TTLMap struct {
 	data map[string]*Element
 	mu   *sync.RWMutex
 	// cleanupTicker signals how often the expired elements are cleaned up
 	cleanupTicker  *time.Ticker
 	cleanupPreHook Hook
+	ctx            context.Context
 }
 
+// Element is a value that expires after a given Time
 type Element struct {
 	Value interface{}
-	Ex    int64
+	Ex    time.Time
 }
 
-func NewTTLMap(t *time.Ticker, f Hook) *TTLMap {
+// New return a new TTLMap with the given cleanupTicker and cleanupPreHook
+func New(t *time.Ticker, f Hook, ctx context.Context) (*TTLMap, error) {
+	if t == nil {
+		return nil, fmt.Errorf("cleanupTicker cannot be nil")
+	}
+	if ctx == nil {
+		return nil, fmt.Errorf("ctx cannot be nil")
+	}
 	tm := &TTLMap{
 		data:          make(map[string]*Element),
 		mu:            &sync.RWMutex{},
 		cleanupTicker: t,
 		//cleanupPreHook should only work on copy of the data map
 		cleanupPreHook: f,
+		ctx:            ctx,
 	}
 
 	tm.startCleanupRoutine()
-	return tm
+	return tm, nil
 }
 
 // Set the value for the given key. If the key already exists, the value
@@ -39,13 +52,15 @@ func NewTTLMap(t *time.Ticker, f Hook) *TTLMap {
 // The key will expire after the given ttl.
 // The duration must be greater than 0.
 // ttl is in seconds.
-func (m *TTLMap) Set(key string, value interface{}, ttl int64) {
+func (m *TTLMap) Set(key string, value interface{}, ttl time.Duration) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	ex := time.Now().Unix() + ttl
+	ex := time.Now().Add(ttl)
 	m.data[key] = &Element{value, ex}
 }
 
+// Get returns the value for the given key. If the key does not exist,
+// an empty Element is returned along with a false boolean.
 func (m *TTLMap) Get(key string) (Element, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -56,7 +71,9 @@ func (m *TTLMap) Get(key string) (Element, bool) {
 	return a, false
 }
 
-// Keys will return all keys of the TTLMap
+// Keys will return all keys of the TTLMap.
+// The keys are returned are a snapshot of the keys at the time of the call.
+// If the keys are modified after the call, the returned keys will not be updated.
 func (m *TTLMap) Keys() []string {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -68,6 +85,7 @@ func (m *TTLMap) Keys() []string {
 }
 
 // Values will return all Values of the TTLMap
+// The values are returned are a snapshot of the values at the time of the call.
 func (m *TTLMap) Values() []Element {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -78,6 +96,7 @@ func (m *TTLMap) Values() []Element {
 	return values
 }
 
+// GetDataCopy returns a copy of the data map
 func (m *TTLMap) GetDataCopy() map[string]Element {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -88,29 +107,36 @@ func (m *TTLMap) GetDataCopy() map[string]Element {
 	return x
 }
 
-// Startcleanup starts the cleanup routine
+// startCleanupRoutine starts the cleanup routine
 func (m *TTLMap) startCleanupRoutine() {
+	fmt.Println("Starting cleanup routine")
 	go func() {
-		for range m.cleanupTicker.C {
-			m.cleanup()
+		for {
+			select {
+			case <-m.cleanupTicker.C:
+				fmt.Println("Cleanup routine ticked")
+				m.cleanup()
+			case <-m.ctx.Done():
+				fmt.Println("Cleanup routine stopped")
+				return
+			}
 		}
 	}()
 }
 
 // cleanup removes all expired Elements from the map
+// and invokes the cleanupPreHook if it is set
 func (m *TTLMap) cleanup() {
 	// Below will prevent looking at entries in the current minute
-	now := time.Now().Truncate(time.Minute).Unix()
+	now := time.Now()
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for k, v := range m.data {
-		if v.Ex < now {
+		if v.Ex.Before(now) {
 			if m.cleanupPreHook != nil {
 				err := m.cleanupPreHook(k, *v)
 				if err != nil {
-					log.Printf("Error while executing cleanup hook %s, %v, %s \n", k, *v, err)
 					log.Println(err)
-					// continue
 				}
 			}
 			delete(m.data, k)

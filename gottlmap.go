@@ -8,6 +8,12 @@ import (
 	"time"
 )
 
+var (
+	// ErrKeyNotFound is returned when the key is not found
+	ErrTickerNotSet = fmt.Errorf("cleanupTicker not set")
+	ErrCtxNotSet    = fmt.Errorf("ctx not set")
+)
+
 type Hook func(string, Element) error
 
 // TTLMap is a container of map[string]*Element but with expirable Items.
@@ -29,10 +35,10 @@ type Element struct {
 // New return a new TTLMap with the given cleanupTicker and cleanupPreHook
 func New(t *time.Ticker, f Hook, ctx context.Context) (*TTLMap, error) {
 	if t == nil {
-		return nil, fmt.Errorf("cleanupTicker cannot be nil")
+		return nil, ErrTickerNotSet
 	}
 	if ctx == nil {
-		return nil, fmt.Errorf("ctx cannot be nil")
+		return nil, ErrCtxNotSet
 	}
 	tm := &TTLMap{
 		data:          make(map[string]*Element),

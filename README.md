@@ -1,6 +1,6 @@
 # gottlmap
 [![goreportcard](https://goreportcard.com/badge/github.com/MFlowAU/gottlmap)](https://goreportcard.com/report/github.com/MFlowAU/gottlmap)
-[![Coverage](https://codecov.io/gh/MFlowAU/gottlmap/branch/master/graph/badge.svg)](https://codecov.io/gh/MFlowAU/gottlmap)
+[![Coverage](https://codecov.io/gh/MFlowAU/gottlmap/branch/main/graph/badge.svg)](https://codecov.io/gh/MFlowAU/gottlmap)
 <!-- [![GoDoc](https://godoc.org/github.com/MFlowAU/gottlmap?status.svg)](https://godoc.org/github.com/MFlowAU/gottlmap) -->
 
 

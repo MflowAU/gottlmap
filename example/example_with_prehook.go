@@ -37,7 +37,7 @@ func example_with_prehook() {
 func PreDeleteHook(k string, v gottlmap.Element) error {
 	log.Println("PreHook invoked...")
 	log.Printf("Key: %s, Value: %v\n", k, v.Value)
-	log.Println("Persisting to a file to before deleting from memory...")
+	log.Println("Persisting to a file before deleting from memory...")
 	f.WriteString(fmt.Sprintf("Key: %s, Value: %v\n", k, v.Value))
 	return nil
 }
